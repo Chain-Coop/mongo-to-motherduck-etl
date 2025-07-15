@@ -1,0 +1,45 @@
+name: data-pipeline-workflow
+
+on: 
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: "/15 * * * *"
+
+jobs:
+  run-data-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo content 
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run data pipeline
+        run: python main.py
+        env: 
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          MONGODB_PASSWORD: ${{ secrets.PASSWORD }}  # MongoDB password from GitHub Secrets
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git config user.name 'github-action'
+          git config user.email 'github-actions@github.com'
+          git add .
+          git diff --staged --quiet || echo "changes=true" >> $GITHUB_ENV
+
+      - name: Commit and push if changes
+        if: env.changes == 'true'
+        run: |
+          git commit -m "updated chain pipeline"
+          git push
