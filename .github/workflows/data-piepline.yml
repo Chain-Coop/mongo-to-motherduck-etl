@@ -32,9 +32,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run data pipeline
-        run: python3 main.py
-        env: 
+      - name: Run data pipeline with debugging
+        run: |
+          set -x  # Enable debug mode
+          python main.py
+        env:
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
 
       - name: Check for changes

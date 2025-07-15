@@ -10,8 +10,8 @@ def sync_bitcoinwallets():
     load_dotenv()  # Make sure the environment variables are loaded
 
     # Step 1: Encode MongoDB password
-    password = os.getenv("password")
-    encoded_password = quote_plus(password)
+    PASSWORD = os.getenv("PASSWORD")
+    encoded_password = quote_plus(PASSWORD)
 
     # Step 2: MongoDB connection
     connection_string = f"mongodb+srv://chosen:{encoded_password}@chain-co.c1mmgxn.mongodb.net/?retryWrites=true&w=majority&appName=chain-co"
