@@ -1,54 +1,41 @@
-name: data-pipeline-workflow
+name: run main.py
 
 on:
-  push:
-  workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: '*/15 * * * *' # At 00:00 on Monday
 
 jobs:
-  run-data-pipeline:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo content
-        uses: actions/checkout@v2
+
+      - name: checkout repo content
+        uses: actions/checkout@v2 # checkout the repository content to github runner
+
+      - name: setup python
+        uses: actions/setup-python@v4
         with:
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      # Cache pip dependencies
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run data pipeline with debugging
+          python-version: '3.9' # install the python version needed
+          
+      - name: install python packages
         run: |
-          set -x  # Enable debug mode
-          python main.py
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: execute py script # run main.py
         env:
-          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
-
-      - name: Check for changes
-        id: git-check
+           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+        run: python main.py
+          
+      - name: commit files
         run: |
-          git config user.name 'github-action'
-          git config user.email 'github-actions@github.com'
-          git add .
-          git diff --staged --quiet || echo "changes=true" >> $GITHUB_ENV
-
-      - name: Commit and push if changes
-        if: env.changes == 'true'
-        run: |
-          git commit -m "updated chain pipeline"
-          git push
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git diff-index --quiet HEAD || (git commit -a -m "updated logs" --allow-empty)
+          
+      - name: push changes
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN}}
+          branch: main 
