@@ -1,6 +1,6 @@
 name: data-pipeline-workflow
 
-on: 
+on:
   push:
   workflow_dispatch:
   schedule:
@@ -10,7 +10,7 @@ jobs:
   run-data-pipeline:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo content 
+      - name: Checkout repo content
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      # Step for caching pip dependencies (Updated to v3)
+      # Cache pip dependencies
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:

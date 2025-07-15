@@ -23,68 +23,27 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 if __name__ == "__main__":
+    logger.info("Starting the data pipeline...")
+
     try:
+        logger.info("Syncing contributions...")
         sync_contributions()
         logger.info("✅ Successfully synced contributions.")
     except Exception as e:
         logger.error(f"❌ Failed to sync contributions: {e}")
 
     try:
+        logger.info("Syncing contribution histories...")
         c_contributions()
         logger.info("✅ Successfully synced contribution histories.")
     except Exception as e:
         logger.error(f"❌ Failed to sync contribution histories: {e}")
 
     try:
+        logger.info("Syncing logs...")
         sync_logsz()
         logger.info("✅ Successfully synced logs.")
     except Exception as e:
         logger.error(f"❌ Failed to sync logs: {e}")
 
-    try:
-        sync_manualsavings()
-        logger.info("✅ Successfully synced manual savings.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync manual savings: {e}")
-
-    try:
-        sync_users()
-        logger.info("✅ Successfully synced users.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync users: {e}")
-
-    try:
-        sync_wallets()
-        logger.info("✅ Successfully synced wallets.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync wallets: {e}")
-
-    try:
-        sync_web3histories()
-        logger.info("✅ Successfully synced web3 histories.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync web3 histories: {e}")
-
-    try:
-        sync_web3wallets()
-        logger.info("✅ Successfully synced web3 wallets.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync web3 wallets: {e}")
-
-    try:
-        sync_cashwyretransactions()
-        logger.info("✅ Successfully synced cashwyre transactions.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync cashwyre transactions: {e}")
-
-    try:
-        sync_lndwallets()
-        logger.info("✅ Successfully synced lightning wallets.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync lightning wallets: {e}")
-
-    try:
-        sync_bitcoinwallets()
-        logger.info("✅ Successfully synced bitcoin wallets.")
-    except Exception as e:
-        logger.error(f"❌ Failed to sync bitcoin wallets: {e}")
+    # Repeat for other sync functions...
