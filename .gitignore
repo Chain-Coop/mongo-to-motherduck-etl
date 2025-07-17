@@ -15,4 +15,4 @@ marketing_data.duckdb.wal
 my_db
 
 # # Ignore log files
-# sync_log.txt
+sync_log.txt
