@@ -1,65 +1,9 @@
-# name: Data Sync Pipeline
-
-# on:
-#   schedule:
-#     - cron: '*/15 * * * *'
-#   workflow_dispatch:
-
-# permissions:
-#   contents: write
-
-# jobs:
-#   sync:
-#     runs-on: ubuntu-latest
-#     steps:
-#     - uses: actions/checkout@v3
-    
-#     - name: Set up Python
-#       uses: actions/setup-python@v4
-#       with:
-#         python-version: '3.9'
-        
-#     - name: Install dependencies
-#       run: |
-#         python -m pip install --upgrade pip
-#         pip install -r requirements.txt
-        
-#     - name: Run sync script
-#       env:
-#         PASSWORD: ${{ secrets.PASSWORD }}
-#         MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
-#       run: |
-#         python main.py
-#         ls -la  # Show files after running
-        
-#     - name: Show log file
-#       run: |
-#         if [ -f "sync_log.txt" ]; then
-#           cat sync_log.txt
-#         else
-#           echo "No log file found!"
-#         fi
-        
-#     - name: Commit changes
-#       run: |
-#         git config --local user.email "action@github.com"
-#         git config --local user.name "GitHub Action"
-#         git add .
-#         git status
-#         git diff --cached --quiet || git commit -m "Auto-sync data $(date)"
-        
-#     - name: Push changes
-#       uses: ad-m/github-push-action@v0.6.0
-#       with:
-#         github_token: ${{ secrets.GITHUB_TOKEN }}
-#         branch: main
-
 name: Data Sync Pipeline
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Every 15 minutes
-  workflow_dispatch:  # Manual trigger option
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -70,58 +14,43 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Setup Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
         
-    - name: Install Dependencies
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pymongo==4.3.3 duckdb pandas python-dotenv
-        pip uninstall -y grpcio grpcio-tools || true
+        pip install -r requirements.txt
         
-    - name: Verify Environment
-      run: |
-        echo "Installed packages:"
-        pip list
-        echo "Python version: $(python --version)"
-        
-    - name: Run Sync Script
+    - name: Run sync script
       env:
-        PASSWORD: ${{ secrets.PASSWORD }}
+        # PASSWORD: ${{ secrets.PASSWORD }}
         MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
-        GRPC_ENABLE_FORK_SUPPORT: '0'
-        GRPC_POLL_STRATEGY: 'poll'
       run: |
         python main.py
-        ls -la  # Debug: Show files after running
+        ls -la  # Show files after running
         
     - name: Show log file
-      if: always()  # Always show logs even if previous step fails
       run: |
         if [ -f "sync_log.txt" ]; then
-          echo "=== sync_log.txt ==="
           cat sync_log.txt
-          echo "==================="
         else
           echo "No log file found!"
         fi
         
-    - name: Commit Changes
+    - name: Commit changes
       run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git add .  # Stage all changes
-        git status  # Check the status
-        if ! git diff-index --quiet HEAD --; then
-          git commit -m "Data sync $(date +'%Y-%m-%d %H:%M:%S')"
-        else
-          echo "No changes to commit"
-        fi
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git status
+        git diff --cached --quiet || git commit -m "Auto-sync data $(date)"
         
-    - name: Push Changes
+    - name: Push changes
       uses: ad-m/github-push-action@v0.6.0
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: main
+
