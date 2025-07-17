@@ -26,7 +26,7 @@ jobs:
         
     - name: Run sync script
       env:
-        MONGO_URI: ${{ secrets.MONGO_URI }}
+        PASSWORD: ${{ secrets.PASSWORD }}
         MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
       run: |
         python main.py
