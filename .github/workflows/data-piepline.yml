@@ -24,6 +24,7 @@ jobs:
           
       - name: Execute Python script (main.py)
         env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
         run: python main.py
           
