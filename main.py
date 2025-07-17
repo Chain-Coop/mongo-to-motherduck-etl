@@ -296,7 +296,7 @@ def sync_collection(collection_name, client):
             """)
             
         logger.info(f"✅ Successfully synced {collection_name} ({len(df)} records)")
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to sync {collection_name}: {e}")
         raise
