@@ -1,0 +1,11 @@
+2025-07-11 17:45:25,220 - INFO - ✅ Successfully synced contributions.
+2025-07-11 17:45:30,078 - INFO - ✅ Successfully synced contribution histories.
+2025-07-11 17:45:32,905 - INFO - ✅ Successfully synced logs.
+2025-07-11 17:45:46,851 - INFO - ✅ Successfully synced manual savings.
+2025-07-11 17:45:48,379 - INFO - ✅ Successfully synced users.
+2025-07-11 17:45:49,598 - INFO - ✅ Successfully synced wallets.
+2025-07-11 17:45:52,683 - INFO - ✅ Successfully synced web3 histories.
+2025-07-11 17:45:52,685 - ERROR - ❌ Failed to sync web3 wallets: All nameservers failed to answer the query _mongodb._tcp.chain-co.c1mmgxn.mongodb.net. IN SRV: Server Do53:172.18.96.1@53 answered [Errno 1] Operation not permitted
+2025-07-11 17:45:55,505 - INFO - ✅ Successfully synced cashwyre transactions.
+2025-07-11 17:45:56,708 - INFO - ✅ Successfully synced lightning wallets.
+2025-07-11 17:45:57,886 - INFO - ✅ Successfully synced bitcoin wallets.
