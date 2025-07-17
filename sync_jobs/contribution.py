@@ -10,10 +10,10 @@ def sync_contributions():
     load_dotenv()  # Make sure this is here!
     
     # Step 1: Encode MongoDB password
-    password = os.getenv("password")
-    if not password:
+    PASSWORD = os.getenv("PASSWORD")
+    if not PASSWORD:
         raise ValueError("❌ MongoDB password not found in .env")
-    encoded_password = quote_plus(password)
+    encoded_password = quote_plus(PASSWORD)
 
     # Step 2: Connect to MongoDB
     connection_string = f"mongodb+srv://chosen:{encoded_password}@chain-co.c1mmgxn.mongodb.net/?retryWrites=true&w=majority&appName=chain-co"
