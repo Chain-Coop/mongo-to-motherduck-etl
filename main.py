@@ -230,6 +230,9 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 if __name__ == "__main__":
+    # Debug: Log all environment variables (remove this after debugging)
+    logger.info(f"Current environment variables: {dict(os.environ)}")
+    
     logger.info("Starting the data pipeline...")
 
     try:

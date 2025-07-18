@@ -130,16 +130,25 @@ def sync_contributions():
     if not MOTHERDUCK_TOKEN:
         raise ValueError("❌ MOTHERDUCK_TOKEN not found in environment variables")
 
-    # Encode MongoDB password
-    encoded_password = quote_plus(PASSWORD)
+    # Improved password encoding with error handling
+    try:
+        encoded_password = quote_plus(PASSWORD.encode('utf-8'))  # Explicit encoding
+    except Exception as e:
+        raise ValueError(f"❌ Failed to encode password: {e}")
 
     # Connect to MongoDB
-    client = MongoClient(MONGO_URI)
-    db = client["chain-co-dev"]
-    collection = db["contributions"]
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client["chain-co-dev"]
+        collection = db["contributions"]
+    except Exception as e:
+        raise ConnectionError(f"❌ Failed to connect to MongoDB: {e}")
 
     # Connect to DuckDB / MotherDuck
-    md_conn = duckdb.connect("md:my_db")
+    try:
+        md_conn = duckdb.connect("md:my_db")
+    except Exception as e:
+        raise ConnectionError(f"❌ Failed to connect to DuckDB: {e}")
 
     # Check if 'contributions' table exists in DuckDB
     table_exists = md_conn.execute("""
@@ -199,18 +208,22 @@ def sync_contributions():
         return
 
     # Authenticate MotherDuck
-    duckdb.sql("INSTALL motherduck; LOAD motherduck;")
-    duckdb.sql(f"SET motherduck_token='{MOTHERDUCK_TOKEN}'")
-
-    md_conn = duckdb.connect("md:my_db")  # reconnect with token
+    try:
+        duckdb.sql("INSTALL motherduck; LOAD motherduck;")
+        duckdb.sql(f"SET motherduck_token='{MOTHERDUCK_TOKEN}'")
+        md_conn = duckdb.connect("md:my_db")  # reconnect with token
+    except Exception as e:
+        raise ConnectionError(f"❌ Failed to authenticate with MotherDuck: {e}")
 
     # Push data to MotherDuck
-    md_conn.register("df", df)
-    md_conn.execute("CREATE TABLE IF NOT EXISTS contributions AS SELECT * FROM df LIMIT 0")
-    md_conn.execute("""
-        INSERT INTO contributions
-        SELECT * FROM df
-        WHERE mongo_id NOT IN (SELECT mongo_id FROM contributions)
-    """)
-
-    print(f"✅ Successfully pushed {len(df)} contributions to MotherDuck!")
+    try:
+        md_conn.register("df", df)
+        md_conn.execute("CREATE TABLE IF NOT EXISTS contributions AS SELECT * FROM df LIMIT 0")
+        md_conn.execute("""
+            INSERT INTO contributions
+            SELECT * FROM df
+            WHERE mongo_id NOT IN (SELECT mongo_id FROM contributions)
+        """)
+        print(f"✅ Successfully pushed {len(df)} contributions to MotherDuck!")
+    except Exception as e:
+        raise RuntimeError(f"❌ Failed to push data to MotherDuck: {e}")

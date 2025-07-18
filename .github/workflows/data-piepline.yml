@@ -82,10 +82,11 @@ jobs:
         
     - name: Run sync script
       run: |
-        echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV  # Pass secret to env variable
-        echo "MOTHERDUCK_TOKEN=${{ secrets.MOTHERDUCK_TOKEN }}" >> $GITHUB_ENV  # Pass secret to env variable
+        echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV
+        echo "MOTHERDUCK_TOKEN=${{ secrets.MOTHERDUCK_TOKEN }}" >> $GITHUB_ENV
+        echo "PASSWORD=${{ secrets.PASSWORD }}" >> $GITHUB_ENV  # Add this line
         python main.py
-        ls -la  # Show files after running
+        ls -la
         
     - name: Show log file
       run: |
