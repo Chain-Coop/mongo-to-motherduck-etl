@@ -1,9 +1,65 @@
+# name: Data Sync Pipeline
+
+# on:
+#   schedule:
+#     - cron: '*/15 * * * *'
+#   workflow_dispatch:
+
+# permissions:
+#   contents: write
+
+# jobs:
+#   sync:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v3
+    
+#     - name: Set up Python
+#       uses: actions/setup-python@v4
+#       with:
+#         python-version: '3.9'
+        
+#     - name: Install dependencies
+#       run: |
+#         python -m pip install --upgrade pip
+#         pip install -r requirements.txt
+        
+#     - name: Run sync script
+#       env:
+#         # PASSWORD: ${{ secrets.PASSWORD }}
+#         MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+#       run: |
+#         python main.py
+#         ls -la  # Show files after running
+        
+#     - name: Show log file
+#       run: |
+#         if [ -f "sync_log.txt" ]; then
+#           cat sync_log.txt
+#         else
+#           echo "No log file found!"
+#         fi
+        
+#     - name: Commit changes
+#       run: |
+#         git config --local user.email "action@github.com"
+#         git config --local user.name "GitHub Action"
+#         git add .
+#         git status
+#         git diff --cached --quiet || git commit -m "Auto-sync data $(date)"
+        
+#     - name: Push changes
+#       uses: ad-m/github-push-action@v0.6.0
+#       with:
+#         github_token: ${{ secrets.GITHUB_TOKEN }}
+#         branch: main
+
 name: Data Sync Pipeline
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
-  workflow_dispatch:
+    - cron: '*/15 * * * *'  # Every 15 minutes
+  workflow_dispatch:  # Manual trigger option
 
 permissions:
   contents: write
@@ -25,10 +81,9 @@ jobs:
         pip install -r requirements.txt
         
     - name: Run sync script
-      env:
-        # PASSWORD: ${{ secrets.PASSWORD }}
-        MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
       run: |
+        echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV  # Pass secret to env variable
+        echo "MOTHERDUCK_TOKEN=${{ secrets.MOTHERDUCK_TOKEN }}" >> $GITHUB_ENV  # Pass secret to env variable
         python main.py
         ls -la  # Show files after running
         
@@ -44,13 +99,12 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add .
-        git status
-        git diff --cached --quiet || git commit -m "Auto-sync data $(date)"
+        git add .  # Staging changes
+        git status  # Check changes
+        git diff --cached --quiet || git commit -m "Auto-sync data $(date)"  # Commit if there are changes
         
     - name: Push changes
       uses: ad-m/github-push-action@v0.6.0
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}  # Use the automatically provided GITHUB_TOKEN
         branch: main
-
