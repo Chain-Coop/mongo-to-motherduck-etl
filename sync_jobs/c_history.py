@@ -12,7 +12,7 @@ def c_contributions():
     load_dotenv()
     
     # 1. Get credentials
-    password = os.getenv("password")
+    password = os.getenv("PASSWORD")
     motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
     
     if not password:
