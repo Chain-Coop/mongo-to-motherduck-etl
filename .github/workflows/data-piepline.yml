@@ -2,8 +2,8 @@ name: Data Sync Pipeline
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Every 15 minutes
-  workflow_dispatch:  # Manual trigger option
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,22 +24,20 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # First debug step to check raw secrets
-    - name: Debug raw secrets
-      run: |
-        echo "MONGO_URI exists: ${{ secrets.MONGO_URI != '' }}"
-        echo "PASSWORD exists: ${{ secrets.PASSWORD != '' }}"
-        echo "MOTHERDUCK_TOKEN exists: ${{ secrets.MOTHERDUCK_TOKEN != '' }}"
-        
-    # Set environment variables properly
+    # Set environment variables in a separate step
     - name: Set environment variables
+      env:
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        PASSWORD: ${{ secrets.PASSWORD }}
+        MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
       run: |
-        echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV
-        echo "MOTHERDUCK_TOKEN=${{ secrets.MOTHERDUCK_TOKEN }}" >> $GITHUB_ENV
-        echo "PASSWORD=${{ secrets.PASSWORD }}" >> $GITHUB_ENV
-        
-    # Second debug step to check environment variables
-    - name: Debug environment
+        echo "MONGO_URI=${MONGO_URI}" >> $GITHUB_ENV
+        echo "PASSWORD=${PASSWORD}" >> $GITHUB_ENV
+        echo "MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}" >> $GITHUB_ENV
+        echo "Variables set successfully"
+
+    # Debug step to verify variables
+    - name: Verify environment variables
       run: |
         echo "MONGO_URI length: ${#MONGO_URI}"
         echo "PASSWORD length: ${#PASSWORD}"

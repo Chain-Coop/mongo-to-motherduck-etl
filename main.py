@@ -217,27 +217,34 @@
 
 
 import logging
-from dotenv import load_dotenv
 import os
 from sync_jobs.contribution import sync_contributions
 
 # Set up the logger
 logger = logging.getLogger("sync_logger")
-logger.setLevel(logging.DEBUG)  # Set log level to DEBUG
-file_handler = logging.FileHandler("sync_log.txt")  # Log file name
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')  # Log format
+logger.setLevel(logging.DEBUG)
+file_handler = logging.FileHandler("sync_log.txt")
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 if __name__ == "__main__":
-    # Debug: Log all environment variables (remove this after debugging)
+    # Debug: Show all environment variables (remove after debugging)
     logger.info(f"Current environment variables: {dict(os.environ)}")
     
+    # Explicitly check for required variables
+    required_vars = ['PASSWORD', 'MONGO_URI', 'MOTHERDUCK_TOKEN']
+    missing_vars = [var for var in required_vars if var not in os.environ]
+    
+    if missing_vars:
+        error_msg = f"Missing environment variables: {', '.join(missing_vars)}"
+        logger.error(error_msg)
+        raise EnvironmentError(error_msg)
+    
     logger.info("Starting the data pipeline...")
-
     try:
         logger.info("Syncing contributions...")
-        sync_contributions()  # Call sync_contributions directly
+        sync_contributions()
         logger.info("✅ Successfully synced contributions.")
     except Exception as e:
         logger.error(f"❌ Failed to sync contributions: {e}")
