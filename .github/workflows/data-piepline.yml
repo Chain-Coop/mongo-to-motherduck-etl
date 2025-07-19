@@ -24,8 +24,22 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # Add this debug step right here
-    - name: Debug secrets
+    # First debug step to check raw secrets
+    - name: Debug raw secrets
+      run: |
+        echo "MONGO_URI exists: ${{ secrets.MONGO_URI != '' }}"
+        echo "PASSWORD exists: ${{ secrets.PASSWORD != '' }}"
+        echo "MOTHERDUCK_TOKEN exists: ${{ secrets.MOTHERDUCK_TOKEN != '' }}"
+        
+    # Set environment variables properly
+    - name: Set environment variables
+      run: |
+        echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV
+        echo "MOTHERDUCK_TOKEN=${{ secrets.MOTHERDUCK_TOKEN }}" >> $GITHUB_ENV
+        echo "PASSWORD=${{ secrets.PASSWORD }}" >> $GITHUB_ENV
+        
+    # Second debug step to check environment variables
+    - name: Debug environment
       run: |
         echo "MONGO_URI length: ${#MONGO_URI}"
         echo "PASSWORD length: ${#PASSWORD}"
@@ -33,9 +47,6 @@ jobs:
         
     - name: Run sync script
       run: |
-        echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> $GITHUB_ENV
-        echo "MOTHERDUCK_TOKEN=${{ secrets.MOTHERDUCK_TOKEN }}" >> $GITHUB_ENV
-        echo "PASSWORD=${{ secrets.PASSWORD }}" >> $GITHUB_ENV
         python main.py
         ls -la
         
