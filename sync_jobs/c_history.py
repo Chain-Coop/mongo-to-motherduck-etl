@@ -3,115 +3,110 @@ from urllib.parse import quote_plus
 import duckdb
 import os
 import pandas as pd
-from bson import ObjectId  # Import ObjectId for comparison
+from bson import ObjectId
+import logging
 from dotenv import load_dotenv
 
 def c_contributions():
+    # Load environment variables
     load_dotenv()
-
-    # Step 1: Encode MongoDB password
+    
+    # 1. Get credentials
     password = os.getenv("password")
-    encoded_password = quote_plus(password)
+    motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
+    
+    if not password:
+        raise ValueError("❌ MongoDB password not found in .env")
+    if not motherduck_token:
+        raise ValueError("❌ MotherDuck token not found in .env")
 
-    # Step 2: MongoDB connection
-    connection_string = f"mongodb+srv://chosen:{encoded_password}@chain-co.c1mmgxn.mongodb.net/?retryWrites=true&w=majority&appName=chain-co"
-    client = MongoClient(connection_string)
-
+    # 2. MongoDB Connection
     try:
+        encoded_password = quote_plus(password)
+        connection_string = f"mongodb+srv://chosen:{encoded_password}@chain-co.c1mmgxn.mongodb.net/?retryWrites=true&w=majority&appName=chain-co"
+        client = MongoClient(connection_string)
         db = client["chain-co-dev"]
-        collection = db["contributionhistories"]  # Corrected collection name
-        print("✅ Successfully connected to MongoDB!")
+        collection = db["contributionhistories"]
+        logging.info("✅ MongoDB connection established")
     except Exception as e:
-        print("❌ MongoDB Error:", e)
-        return
+        logging.error(f"❌ MongoDB connection failed: {e}")
+        raise
 
-    # Step 3: Check the total number of documents in MongoDB
-    total_docs = collection.count_documents({})
-    print(f"📊 Total logs in MongoDB: {total_docs}")
-
-    # Step 4: Fetch documents from MongoDB
-    docs_list = list(collection.find())
-
-    # Step 5: If there are documents, proceed with sync logic
-    if total_docs > 0:
+    # 3. MotherDuck Setup
+    try:
+        duckdb.sql("INSTALL motherduck; LOAD motherduck;")
+        duckdb.sql(f"SET motherduck_token='{motherduck_token}'")
         md_conn = duckdb.connect("md:my_db")
+        logging.info("✅ MotherDuck authentication successful")
+    except Exception as e:
+        logging.error(f"❌ MotherDuck setup failed: {e}")
+        raise
 
-        # Step 6: Check if 'contributionhistories' table exists in DuckDB
+    # 4. Check existing data
+    try:
+        # Check if table exists
         table_exists = md_conn.execute("""
-            SELECT COUNT(*) 
-            FROM duckdb_tables() 
+            SELECT COUNT(*) FROM duckdb_tables()
             WHERE table_name = 'contributionhistories'
         """).fetchone()[0] > 0
 
-        # Step 7: Pull records from MongoDB
+        # Get last synced ID if table exists
+        last_id = None
         if table_exists:
             try:
-                last_synced_contributions = md_conn.execute(
+                last_id = md_conn.execute(
                     "SELECT mongo_id FROM contributionhistories ORDER BY mongo_id DESC LIMIT 1"
                 ).fetchone()[0]
-                print(f"🕒 Last synced mongo_id from DuckDB: {last_synced_contributions}")
+                logging.info(f"🕒 Last synced ID: {last_id}")
             except Exception as e:
-                print("⚠️ Failed to fetch last mongo_id from DuckDB:", e)
-                last_synced_contributions = None
+                logging.warning(f"⚠️ Couldn't get last ID: {e}")
 
-            if last_synced_contributions:
-                # Convert last_synced_contributions to ObjectId for comparison
-                last_synced_contributions = ObjectId(last_synced_contributions)  # Ensure it's an ObjectId
-                docs = collection.find({"_id": {"$gt": last_synced_contributions}})
-            else:
-                docs = collection.find()
-        else:
-            docs = collection.find()
-
-        # Step 8: Convert to DataFrame
-        df = pd.DataFrame(docs_list)
-
-        # ✅ Exit if Mongo returns no data
-        if df.empty:
-            print("ℹ️ No contributionhistories found in MongoDB.")
+        # Fetch new documents with proper type conversion
+        query = {"_id": {"$gt": ObjectId(last_id)}} if last_id else {}
+        docs = list(collection.find(query))
+        
+        if not docs:
+            logging.info("ℹ️ No new documents to sync")
             return
 
-        # Step 9: Convert _id and mongo_id
-        if "_id" in df.columns:
-            df["_id"] = df["_id"].astype(str)  # Convert _id to string
-            df.rename(columns={"_id": "mongo_id"}, inplace=True)
+        # Convert to DataFrame with explicit type handling
+        df = pd.DataFrame(docs)
+        df["_id"] = df["_id"].astype(str)
+        df.rename(columns={"_id": "mongo_id"}, inplace=True)
 
-        if "mongo_id" not in df.columns:
-            raise ValueError("❌ Expected '_id' field not found in MongoDB documents.")
+        # Deduplication logic
+        if table_exists:
+            existing_ids = md_conn.execute(
+                "SELECT mongo_id FROM contributionhistories"
+            ).fetchdf()["mongo_id"].tolist()
+            df = df[~df["mongo_id"].isin(existing_ids)]
 
-        # Step 10: Compare to existing MotherDuck records
-        existing_ids = []
-        try:
-            existing_ids = md_conn.execute("SELECT mongo_id FROM contributionhistories").fetchdf()["mongo_id"].tolist()
-        except duckdb.CatalogException:
-            print("ℹ️ No existing contributionhistories table found. All records will be synced.")
-
-        df = df[~df["mongo_id"].isin(existing_ids)]
-
-        # ✅ Exit if no new records after deduplication
         if df.empty:
-            print("ℹ️ No new contributions to sync.")
+            logging.info("ℹ️ No new records after deduplication")
             return
 
-        # Step 11: MotherDuck auth
-        motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
-        if not motherduck_token:
-            raise ValueError("❌ MOTHERDUCK_TOKEN not set in .env file")
-
-        duckdb.sql("INSTALL motherduck; LOAD motherduck;")
-        duckdb.sql(f"SET motherduck_token='{motherduck_token}'")
-
-        md_conn = duckdb.connect("md:my_db")  # reconnect with token
-
-        # Step 12: Push data
-        md_conn.register("df", df)
-        md_conn.execute("CREATE TABLE IF NOT EXISTS contributionhistories AS SELECT * FROM df LIMIT 0")
+        # Push to MotherDuck with explicit schema
+        md_conn.execute("""
+            CREATE TABLE IF NOT EXISTS contributionhistories (
+                mongo_id VARCHAR PRIMARY KEY,
+                -- Add other columns with explicit types here
+                paymentReference VARCHAR,
+                amount FLOAT,
+                created_at TIMESTAMP
+            )
+        """)
+        
+        md_conn.register("new_data", df)
         md_conn.execute("""
             INSERT INTO contributionhistories
-            SELECT * FROM df
-            WHERE mongo_id NOT IN (SELECT mongo_id FROM contributionhistories)
+            SELECT * FROM new_data
+            WHERE mongo_id NOT IN (
+                SELECT mongo_id FROM contributionhistories
+            )
         """)
+        
+        logging.info(f"✅ Successfully synced {len(df)} new records")
 
-        print("✅ Data successfully pushed to MotherDuck!")
-    else:
-        print("ℹ️ No documents to sync from MongoDB.")
+    except Exception as e:
+        logging.error(f"❌ Sync failed: {e}")
+        raise

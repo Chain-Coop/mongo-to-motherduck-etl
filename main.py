@@ -219,6 +219,7 @@
 import logging
 import os
 from sync_jobs.contribution import sync_contributions
+from sync_jobs.c_history import c_contributions
 
 # Set up the logger
 logger = logging.getLogger("sync_logger")
@@ -248,3 +249,9 @@ if __name__ == "__main__":
         logger.info("✅ Successfully synced contributions.")
     except Exception as e:
         logger.error(f"❌ Failed to sync contributions: {e}")
+    try:
+        logger.info("contributions list...")
+        c_contributions()
+        logger.info("✅ Successfully synced contributions history.")
+    except Exception as e:
+        logger.error(f"❌ Failed to sync contributions history: {e}")
