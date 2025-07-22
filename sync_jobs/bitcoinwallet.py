@@ -3,108 +3,110 @@ from urllib.parse import quote_plus
 import duckdb
 import os
 import pandas as pd
+from bson import ObjectId
+import logging
 from dotenv import load_dotenv
-from bson import ObjectId  # Required for filtering by MongoDB _id
 
 def sync_bitcoinwallets():
-    load_dotenv()  # Make sure the environment variables are loaded
+    # Load environment variables
+    load_dotenv()
+    
+    # 1. Get credentials
+    password = os.getenv("PASSWORD")
+    motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
+    
+    if not password:
+        raise ValueError("❌ MongoDB password not found in .env")
+    if not motherduck_token:
+        raise ValueError("❌ MotherDuck token not found in .env")
 
-    # Step 1: Encode MongoDB password
-    PASSWORD = os.getenv("PASSWORD")
-    encoded_password = quote_plus(PASSWORD)
-
-    # Step 2: MongoDB connection
-    connection_string = f"mongodb+srv://chosen:{encoded_password}@chain-co.c1mmgxn.mongodb.net/?retryWrites=true&w=majority&appName=chain-co"
-    client = MongoClient(connection_string)
-
+    # 2. MongoDB Connection
     try:
+        encoded_password = quote_plus(password)
+        connection_string = f"mongodb+srv://chosen:{encoded_password}@chain-co.c1mmgxn.mongodb.net/?retryWrites=true&w=majority&appName=chain-co"
+        client = MongoClient(connection_string)
         db = client["chain-co-dev"]
         collection = db["bitcoinwallets"]
-        print("✅ Successfully connected to MongoDB!")
+        logging.info("✅ MongoDB connection established")
     except Exception as e:
-        print("❌ MongoDB Error:", e)
-        return
+        logging.error(f"❌ MongoDB connection failed: {e}")
+        raise
 
-    # Step 3: Connect to DuckDB / MotherDuck
-    md_conn = duckdb.connect("md:my_db")
+    # 3. MotherDuck Setup
+    try:
+        duckdb.sql("INSTALL motherduck; LOAD motherduck;")
+        duckdb.sql(f"SET motherduck_token='{motherduck_token}'")
+        md_conn = duckdb.connect("md:my_db")
+        logging.info("✅ MotherDuck authentication successful")
+    except Exception as e:
+        logging.error(f"❌ MotherDuck setup failed: {e}")
+        raise
 
-    # Step 4: Check if 'bitcoinwallets' table exists in DuckDB
-    table_exists = md_conn.execute("""
-        SELECT COUNT(*) 
-        FROM duckdb_tables() 
-        WHERE table_name = 'bitcoinwallets'
-    """).fetchone()[0] > 0
+    # 4. Check existing data
+    try:
+        # Check if table exists
+        table_exists = md_conn.execute(""" 
+            SELECT COUNT(*) FROM duckdb_tables() 
+            WHERE table_name = 'bitcoinwallets' 
+        """).fetchone()[0] > 0
+        
+        # Get last synced ID if table exists
+        last_id = None
+        if table_exists:
+            try:
+                last_id = md_conn.execute(
+                    "SELECT mongo_id FROM bitcoinwallets ORDER BY mongo_id DESC LIMIT 1"
+                ).fetchone()[0]
+                logging.info(f"🕒 Last synced ID: {last_id}")
+            except Exception as e:
+                logging.warning(f"⚠️ Couldn't get last ID: {e}")
+        
+        # Fetch new documents with proper type conversion
+        query = {"_id": {"$gt": ObjectId(last_id)}} if last_id else {}
+        docs = list(collection.find(query))
 
-    # Step 5: Pull records from MongoDB (using _id for proper incremental sync)
-    if table_exists:
-        try:
-            # Get the last synced mongo_id from DuckDB
-            last_synced_contributions = md_conn.execute(
-                "SELECT mongo_id FROM bitcoinwallets ORDER BY mongo_id DESC LIMIT 1"
-            ).fetchone()[0]
-            print(f"🕒 Last synced mongo_id from DuckDB: {last_synced_contributions}")
-        except Exception as e:
-            print("⚠️ Failed to fetch last mongo_id from DuckDB:", e)
-            last_synced_contributions = None
-
-        # Fetch documents from MongoDB based on the last synced mongo_id
-        if last_synced_contributions:
-            last_synced_contributions = ObjectId(last_synced_contributions)  # Convert to ObjectId
-            docs = collection.find({"_id": {"$gt": last_synced_contributions}})
-        else:
-            docs = collection.find()
-    else:
-        docs = collection.find()
-
-    # Step 6: Convert MongoDB documents to DataFrame
-    df = pd.DataFrame(docs)
-
-    # ✅ Exit if MongoDB returns no data
-    if df.empty:
-        print("ℹ️ No bitcoinwallets found in MongoDB.")
-        return
-
-    print(f"📥 Pulled new documents from MongoDB: {df.shape[0]}")
-
-    # Step 7: Convert MongoDB _id to mongo_id (ensure it's a string for comparison)
-    if "_id" in df.columns:
+        if not docs:
+            logging.info("ℹ️ No new documents to sync")
+            return
+        
+        # Convert to DataFrame with explicit type handling
+        df = pd.DataFrame(docs)
         df["_id"] = df["_id"].astype(str)
         df.rename(columns={"_id": "mongo_id"}, inplace=True)
 
-    if "mongo_id" not in df.columns:
-        raise ValueError("❌ Expected '_id' field not found in MongoDB documents.")
+        # Deduplication logic
+        if table_exists:
+            existing_ids = md_conn.execute(
+                "SELECT mongo_id FROM bitcoinwallets"
+            ).fetchdf()["mongo_id"].tolist()
+            df = df[~df["mongo_id"].isin(existing_ids)]
 
-    # Step 8: Deduplicate by checking existing mongo_ids in DuckDB
-    existing_ids = []
-    try:
-        existing_ids = md_conn.execute("SELECT mongo_id FROM bitcoinwallets").fetchdf()["mongo_id"].tolist()
-    except duckdb.CatalogException:
-        print("ℹ️ No existing bitcoinwallets table found. All records will be synced.")
+        if df.empty:
+            logging.info("ℹ️ No new records after deduplication")
+            return
 
-    df = df[~df["mongo_id"].isin(existing_ids)]
+        # Push to MotherDuck with explicit schema
+        md_conn.execute("""
+            CREATE TABLE IF NOT EXISTS bitcoinwallets (
+                mongo_id VARCHAR PRIMARY KEY,
+                -- Add other columns with explicit types here
+                walletAddress VARCHAR,
+                balance FLOAT,
+                created_at TIMESTAMP
+            )
+        """)
+        
+        md_conn.register("new_data", df)
+        md_conn.execute("""
+            INSERT INTO bitcoinwallets
+            SELECT * FROM new_data
+            WHERE mongo_id NOT IN (
+                SELECT mongo_id FROM bitcoinwallets
+            )
+        """)
+        
+        logging.info(f"✅ Successfully synced {len(df)} new records")
 
-    # ✅ Exit if no new records after deduplication
-    if df.empty:
-        print("ℹ️ No new bitcoinwallets to sync.")
-        return
-
-    # Step 9: Authenticate MotherDuck
-    motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
-    if not motherduck_token:
-        raise ValueError("❌ MOTHERDUCK_TOKEN not set in .env file")
-
-    duckdb.sql("INSTALL motherduck; LOAD motherduck;")
-    duckdb.sql(f"SET motherduck_token='{motherduck_token}'")
-
-    md_conn = duckdb.connect("md:my_db")  # reconnect with token
-
-    # Step 10: Push data to MotherDuck
-    md_conn.register("df", df)
-    md_conn.execute("CREATE TABLE IF NOT EXISTS bitcoinwallets AS SELECT * FROM df LIMIT 0")
-    md_conn.execute("""
-        INSERT INTO bitcoinwallets
-        SELECT * FROM df
-        WHERE mongo_id NOT IN (SELECT mongo_id FROM bitcoinwallets)
-    """)
-
-    print("✅ Bitcoin wallets data successfully pushed to MotherDuck!")
+    except Exception as e:
+        logging.error(f"❌ Sync failed: {e}")
+        raise

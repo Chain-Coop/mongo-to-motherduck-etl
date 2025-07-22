@@ -2,7 +2,8 @@ name: Data Sync Pipeline
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    0 6 * * *
+
   workflow_dispatch:
 
 permissions:
