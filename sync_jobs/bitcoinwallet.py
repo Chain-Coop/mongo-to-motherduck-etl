@@ -89,34 +89,23 @@ def sync_bitcoinwallets():
             logging.info("ℹ️ No new records after deduplication")
             return
 
-        # Create the table schema dynamically based on the MongoDB document
-        first_doc = docs[0]  # Take the first document to infer schema
-        columns = []
-        for key, value in first_doc.items():
-            if isinstance(value, str):
-                col_type = "VARCHAR"
-            elif isinstance(value, float):
-                col_type = "FLOAT"
-            elif isinstance(value, int):
-                col_type = "INTEGER"
-            elif isinstance(value, bool):
-                col_type = "BOOLEAN"
-            elif isinstance(value, pd.Timestamp):  # Handles datetime fields
-                col_type = "TIMESTAMP"
-            elif isinstance(value, ObjectId):
-                col_type = "VARCHAR"  # Treat ObjectId as a string in SQL
-            else:
-                col_type = "VARCHAR"  # Default to VARCHAR if the type is unknown
-
-            columns.append(f"{key} {col_type}")
-
-        # Ensure 'mongo_id' is included as the first column
-        columns = ['mongo_id VARCHAR PRIMARY KEY'] + columns
-
-        # Create table dynamically in MotherDuck
-        create_table_query = f"""
+        # Create the table schema with explicit fields based on MongoDB document structure
+        create_table_query = """
             CREATE TABLE IF NOT EXISTS bitcoinwallets (
-                {', '.join(columns)}
+                mongo_id VARCHAR PRIMARY KEY,
+                user VARCHAR,
+                encryptedPrivateKey VARCHAR,
+                encryptedWif VARCHAR,
+                publicKey VARCHAR,
+                address VARCHAR,
+                walletType VARCHAR,
+                lockedAmount FLOAT,
+                lockedAmountSatoshis FLOAT,
+                lockDuration FLOAT,
+                isLocked BOOLEAN,
+                createdAt TIMESTAMP,
+                updatedAt TIMESTAMP,
+                __v INTEGER
             )
         """
         md_conn.execute(create_table_query)
