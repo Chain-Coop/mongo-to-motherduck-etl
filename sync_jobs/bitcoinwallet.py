@@ -85,17 +85,38 @@ def sync_bitcoinwallets():
             logging.info("ℹ️ No new records after deduplication")
             return
 
-        # Push to MotherDuck with explicit schema
-        md_conn.execute("""
+        # Dynamically create the table schema based on the MongoDB document
+        first_doc = docs[0]  # Take the first document to infer schema
+        columns = []
+        for key, value in first_doc.items():
+            if isinstance(value, str):
+                col_type = "VARCHAR"
+            elif isinstance(value, float):
+                col_type = "FLOAT"
+            elif isinstance(value, int):
+                col_type = "INTEGER"
+            elif isinstance(value, bool):
+                col_type = "BOOLEAN"
+            elif isinstance(value, pd.Timestamp):  # Handles datetime fields
+                col_type = "TIMESTAMP"
+            elif isinstance(value, ObjectId):
+                col_type = "VARCHAR"  # Treat ObjectId as a string in SQL
+            else:
+                col_type = "VARCHAR"  # Default to VARCHAR if the type is unknown
+
+            columns.append(f"{key} {col_type}")
+
+        # Create table dynamically in MotherDuck
+        create_table_query = f"""
             CREATE TABLE IF NOT EXISTS bitcoinwallets (
                 mongo_id VARCHAR PRIMARY KEY,
-                -- Add other columns with explicit types here
-                walletAddress VARCHAR,
-                balance FLOAT,
-                created_at TIMESTAMP
+                {', '.join(columns)}
             )
-        """)
-        
+        """
+        md_conn.execute(create_table_query)
+        logging.info(f"✅ Table schema created in MotherDuck")
+
+        # Push data to MotherDuck
         md_conn.register("new_data", df)
         md_conn.execute("""
             INSERT INTO bitcoinwallets
