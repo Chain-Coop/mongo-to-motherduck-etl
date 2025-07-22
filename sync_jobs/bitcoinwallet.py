@@ -74,6 +74,10 @@ def sync_bitcoinwallets():
         df["_id"] = df["_id"].astype(str)
         df.rename(columns={"_id": "mongo_id"}, inplace=True)
 
+        # Remove the `__v` column if it's not needed
+        if "__v" in df.columns:
+            df.drop(columns=["__v"], inplace=True)
+
         # Deduplication logic
         if table_exists:
             existing_ids = md_conn.execute(
@@ -85,7 +89,7 @@ def sync_bitcoinwallets():
             logging.info("ℹ️ No new records after deduplication")
             return
 
-        # Dynamically create the table schema based on the MongoDB document
+        # Create the table schema dynamically based on the MongoDB document
         first_doc = docs[0]  # Take the first document to infer schema
         columns = []
         for key, value in first_doc.items():
@@ -106,10 +110,12 @@ def sync_bitcoinwallets():
 
             columns.append(f"{key} {col_type}")
 
+        # Ensure 'mongo_id' is included as the first column
+        columns = ['mongo_id VARCHAR PRIMARY KEY'] + columns
+
         # Create table dynamically in MotherDuck
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS bitcoinwallets (
-                mongo_id VARCHAR PRIMARY KEY,
                 {', '.join(columns)}
             )
         """
