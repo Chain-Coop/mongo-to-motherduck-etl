@@ -74,7 +74,7 @@ def sync_bitcoinwallets():
         df["_id"] = df["_id"].astype(str)
         df.rename(columns={"_id": "mongo_id"}, inplace=True)
 
-        # Remove the `__v` column if it's not needed
+        # Remove the __v field if it is not needed
         if "__v" in df.columns:
             df.drop(columns=["__v"], inplace=True)
 
