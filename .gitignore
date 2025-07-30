@@ -3,6 +3,8 @@ venv/
 
 # Ignore Python bytecode files
 __pycache__/
+syn_test_env/
+
 
 # Ignore .env file for sensitive information
 .env
@@ -10,6 +12,20 @@ __pycache__/
 # Ignore DuckDB database and associated files
 marketing_data.duckdb
 marketing_data.duckdb.wal
+# Database files
+*.duckdb
+*.duckdb.wal
+*.motherduck
+*.motherduck.wal
+bitcoin_wallets_db.motherduck
+bitcoin_wallets_local.duckdb
+marketing_data.duckdb
+marketing_data.duckdb.wal
+test_bitcoinwallets.motherduck*
+test_my_db*
+test_my_duckdb*
+# Test and sandbox files
+sandbox.py
 
 # Ignore the my_db database
 my_db
