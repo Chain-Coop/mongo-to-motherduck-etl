@@ -9,11 +9,6 @@ import datetime
 from config import COLLECTIONS, DATABASE_NAME, LOCAL_DUCKDB_PATH
 
 def sync_bitcoinwallets(collection_name):
-    # load_dotenv()
-    # password=os.getenv("PASSWORD")
-    # motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
-    # encoded_password = quote_plus(password)
-     # Retrieve MongoDB password and MotherDuck token from environment variables
     PASSWORD = os.getenv("PASSWORD")
     MONGO_URI = os.getenv("MONGO_URI")
     MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
