@@ -44,6 +44,11 @@ jobs:
         echo "PASSWORD length: ${#PASSWORD}"
         echo "MOTHERDUCK_TOKEN length: ${#MOTHERDUCK_TOKEN}"
         
+    # Pull the latest changes from the remote main branch
+    - name: Pull latest changes from remote
+      run: |
+        git pull origin main
+
     - name: Run sync script
       run: |
         python main.py
