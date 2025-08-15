@@ -10,9 +10,6 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 if __name__ == "__main__":
-    # Debug: Show all environment variables (remove after debugging)
-    logger.info(f"Current environment variables: {dict(os.environ)}")
-    
     # Explicitly check for required variables
     required_vars = ['PASSWORD', 'MONGO_URI', 'MOTHERDUCK_TOKEN']
     missing_vars = [var for var in required_vars if var not in os.environ]
